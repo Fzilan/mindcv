@@ -2,14 +2,17 @@
 Vision OutLOoker (VOLO) implementation
 Modified from timm/models/vision_transformer.py
 """
+from typing import Tuple, Union, Any, List, Dict
+
 import numpy as np
 
 import mindspore as ms
 import mindspore.common.initializer as init
 import mindspore.nn as nn
-from mindspore import Parameter, Tensor
+from mindspore import Parameter, Tensor, CSRTensor, COOTensor, RowTensor
 from mindspore import dtype as mstype
 from mindspore import ops
+from numpy import ndarray
 
 from .helpers import load_pretrained
 from .layers.compatibility import Dropout
@@ -437,6 +440,29 @@ def get_block(block_type, **kargs) -> ClassBlock:
         return ClassBlock(**kargs)
 
 
+def rand_bbox(size, lam, scale=1):
+    """
+    get bounding box as token labeling (https://github.com/zihangJiang/TokenLabeling)
+    return: bounding box
+    """
+    W = size[1] // scale
+    H = size[2] // scale
+    cut_rat = np.sqrt(1. - lam)
+    cut_w = np.int(W * cut_rat)
+    cut_h = np.int(H * cut_rat)
+
+    # uniform
+    cx = np.random.randint(W)
+    cy = np.random.randint(H)
+
+    bbx1 = np.clip(cx - cut_w // 2, 0, W)
+    bby1 = np.clip(cy - cut_h // 2, 0, H)
+    bbx2 = np.clip(cx + cut_w // 2, 0, W)
+    bby2 = np.clip(cy + cut_h // 2, 0, H)
+
+    return bbx1, bby1, bbx2, bby2
+
+
 class PatchEmbed(nn.Cell):
     """
     Image to Patch Embedding.
@@ -524,7 +550,7 @@ def outlooker_blocks(block_fn, index, dim, layers, num_heads=1, kernel_size=3,
 
 
 def transformer_blocks(block_fn, index, dim, layers, num_heads, mlp_ratio=3.,
-                       qkv_bias=False, qk_scale=None, attn_drop=0,
+                       qkv_bias=False, qk_scale=None, attn_drop=0.0,
                        drop_path_rate=0.0, **kwargs) -> nn.SequentialCell:
     """
     generate transformer layers in stage2
@@ -720,9 +746,23 @@ class VOLO(nn.Cell):
             x = block(x)
         return x
 
-    def construct(self, x: Tensor) -> Tensor:
+    def construct(self, x: Tensor):
         # step1: patch embedding
         x = self.forward_embeddings(x)
+
+        # mix token, see token labeling for details.
+        if self.mix_token and self.training:
+            lam = np.random.beta(self.beta, self.beta)
+            patch_h, patch_w = x.shape[1] // self.pooling_scale, x.shape[
+                2] // self.pooling_scale
+            bbx1, bby1, bbx2, bby2 = rand_bbox(x.shape, lam, scale=self.pooling_scale)
+            temp_x = x.copy()
+            sbbx1,sbby1,sbbx2,sbby2=self.pooling_scale*bbx1,self.pooling_scale*bby1,\
+                                    self.pooling_scale*bbx2,self.pooling_scale*bby2
+            temp_x[:, sbbx1:sbbx2, sbby1:sbby2, :] = x.flip([0])[:, sbbx1:sbbx2, sbby1:sbby2, :]
+            x = temp_x
+        else:
+            bbx1, bby1, bbx2, bby2 = 0, 0, 0, 0
 
         # step2: tokens learning in the two stages
         x = self.forward_tokens(x)
@@ -739,7 +779,20 @@ class VOLO(nn.Cell):
         if not self.return_dense:
             return x_cls
 
-        return x_cls
+        x_aux = self.aux_head(
+            x[:, 1:]
+        )  # generate classes in all feature tokens, see token labeling
+        if not self.training:
+            return x_cls + 0.5 * x_aux.max(1)
+        if self.mix_token and self.training:  # reverse "mix token", see token labeling for details.
+            x_aux = x_aux.reshape(x_aux.shape[0], patch_h, patch_w, x_aux.shape[-1])
+            temp_x = x_aux.copy()
+            temp_x[:, bbx1:bbx2, bby1:bby2, :] = x_aux.flip([0])[:, bbx1:bbx2, bby1:bby2, :]
+            x_aux = temp_x
+            x_aux = x_aux.reshape(x_aux.shape[0], patch_h * patch_w, x_aux.shape[-1])
+
+        # return these: 1. class token, 2. classes from all feature tokens, 3. bounding box
+        return x_cls, x_aux, (bbx1, bby1, bbx2, bby2)
 
 
 @register_model

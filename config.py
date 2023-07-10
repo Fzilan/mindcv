@@ -124,6 +124,20 @@ def create_parser():
                             'If 0 or 1, repeated augmentation is disabled. '
                             'Otherwise, repeated augmentation is enabled and the common choice is 3 (default=0)')
 
+    # Token Labeling parameters
+    group.add_argument('--token_label', action='store_true', default=False,
+                        help='Use dense token-level label map for training')
+    group.add_argument('--token_label_data', type=str, default='', metavar='DIR',
+                        help='path to token_label data')
+    group.add_argument('--token_label_size', type=int, default=1, metavar='N',
+                        help='size of result token label map')
+    group.add_argument('--dense_weight', type=float, default=0.5,
+                        help='Token labeling loss multiplier (default: 0.5)')
+    group.add_argument('--cls_weight', type=float, default=1.0,
+                        help='Cls token prediction loss multiplier (default: 1.0)')
+    group.add_argument('--ground_truth', action='store_true', default=False,
+                        help='mix ground truth when use token labeling')
+
     # Model parameters
     group = parser.add_argument_group('Model parameters')
     group.add_argument('--model', type=str, default='mobilenet_v2_035_224',
