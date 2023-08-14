@@ -1,10 +1,9 @@
 from typing import List, Optional, Type, Union
 from mindspore import nn
-from mindcv.mindcv.models.resnet import Bottleneck
-from mindcv.models.resnet import ResNet
-from mindcv.mindcv.models.helpers import build_model_with_cfg
-from mindcv.mindcv.models.registry import register_model
-
+from mindcv.models.resnet import Bottleneck
+from mindcv.models.resnet import ResNet, Bottleneck
+from mindcv.models.helpers import build_model_with_cfg
+from mindcv.models.registry import register_model
 
 
 __all__ = [
@@ -77,7 +76,7 @@ class DilatedBottleneck(Bottleneck):
         self.bn3 = norm(channels * self.expansion, use_batch_statistics=use_batch_statistics)
         self.relu = nn.ReLU()
         self.down_sample = down_sample        
-        
+
 
 class DilatedResNet(ResNet):
 
@@ -93,8 +92,7 @@ class DilatedResNet(ResNet):
         norm: Optional[nn.Cell] = None,
         use_batch_statistics: bool = True
     ) -> None:
-        
-        super().__init__()
+        super().__init__(block=block, layers=layers)
         if norm is None:
             norm = nn.BatchNorm2d
         

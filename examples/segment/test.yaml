@@ -1,0 +1,56 @@
+# system
+seed: 1
+mode: 1 # TODO: 现在先用动态图方便调试！静态图是0
+distribute: False
+num_parallel_workers: 8
+enable_modelarts: False
+eval_while_train: False
+
+# dataset
+dataset: "vocaug"
+data_dir: "/Users/fanzhilan/Documents/HUAWEI/Requirement/Dataset/sample.mindrecord" # mindrecord file or list
+batch_size: 1
+crop_size: 513
+image_mean: [103.53, 116.28, 123.675]
+image_std: [57.375, 57.120, 58.395]
+max_scale: 2.0
+min_scale: 0.5
+ignore_label: 255
+num_classes: 21
+shuffle: True
+dataset_sink_mode: True
+
+# training options
+all_reduce_fusion_config: [90, 183, 279] # what's this?
+
+# model
+backbone: "dilated_resnet101"
+backbone_ckpt_path: "" # "/home/cvgroup/fzl/checkpoint/resnet/resnet101-689c5e77.ckpt" # same as resnet101
+backbone_ckpt_auto_mapping: False
+backbone_features_only: True
+# backbone_out_indices: [0, 1, 2, 3, 4]
+backbone_out_indices: [4]
+output_stride: 16
+
+ckpt_path: "" 
+ckpt_save_dir: "./ckpt"
+amp_level: "O3"
+amp_cast_list: None 
+
+# scheduler
+scheduler: "cosine_decay"
+lr: 0.015
+min_lr: 0.0000001 # TODO: figure out the correct setting to match with modelzoo?
+decay_epochs: 40000
+decay_rate: 0.1
+epoch_size: 300
+lr_epoch_stair: False
+
+# optimizer
+loss_scale_type: "fixed"
+drop_overflow_update: False
+loss_scale: 3072.0
+momentum: 0.9
+weight_decay: 0.0001
+filter_bias_and_bn: False
+gradient_accumulation_steps: 1

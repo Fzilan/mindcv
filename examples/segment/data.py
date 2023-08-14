@@ -21,7 +21,7 @@ class SegDataset:
                  num_parallel_calls=4,
                  shard_id=None,
                  shard_num=None,
-                 shuffle = True
+                 shuffle = True,
                  is_training=True):
 
         self.data_file = data_file
@@ -72,20 +72,24 @@ class SegDataset:
 
     def get_dataset(self):
 
-        data_set = de.MindDataset(self.data_file, 
+        # print("data.py::get_dataset ", self.data_file)
+        data_set = de.MindDataset(dataset_files=self.data_file, 
                                   columns_list=["data", "label"],
                                   shuffle=True, 
                                   num_parallel_workers=self.num_readers,
                                   num_shards=self.shard_num, 
                                   shard_id=self.shard_id)
+        # print_dataset(data_set)
         transforms_list = self.preprocess_
         data_set = data_set.map(operations=transforms_list,
                                 input_columns=["data", "label"],
                                 output_columns=["data", "label"],
                                 num_parallel_workers=self.num_parallel_calls)
-        if self.suffle:
+        # print_dataset(data_set) 
+        if self.shuffle:
             data_set = data_set.shuffle(buffer_size=self.batch_size * 10)
         data_set = data_set.batch(self.batch_size, drop_remainder=True)
+        # print_dataset(data_set)
         # data_set = data_set.repeat(repeat)
         return data_set
 
@@ -101,11 +105,12 @@ def create_segment_dataset(
         min_scale,
         ignore_label,
         num_classes,
-        num_readers,
-        num_parallel_calls,
+        num_parallel_workers,
+        # num_readers,
+        # num_parallel_calls,
         shard_id=0,
         shard_num=1,
-        is_training=True，
+        is_training=True,
 ):
     if name == "voc" or name == "vocaug":
         dataset = SegDataset(
@@ -118,8 +123,8 @@ def create_segment_dataset(
             min_scale=min_scale,
             ignore_label=ignore_label,
             num_classes=num_classes,
-            num_readers=num_readers,
-            num_parallel_calls=num_parallel_calls,
+            num_readers=num_parallel_workers,
+            num_parallel_calls=num_parallel_workers,
             shard_id=shard_id,
             shard_num=shard_num,
             shuffle=shuffle,
@@ -130,4 +135,10 @@ def create_segment_dataset(
 
     else:
         raise NotImplementedError
-    
+
+def print_dataset(data_set):
+    count = 0
+    for item in data_set.create_dict_iterator(output_numpy=True):
+        print("sample: {}".format(item))
+        count += 1
+    print("Got {} samples".format(count))
