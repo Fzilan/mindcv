@@ -114,8 +114,8 @@ class ASPPConv(nn.Cell):
             nn.BatchNorm2d(out_channels, use_batch_statistics=use_batch_statistics),
             nn.ReLU(),
         ])
-        for i in self._aspp_conv[0].get_parameters():
-            print(i.name)
+        # for i in self._aspp_conv[0].get_parameters():
+        #     print(i.name)
 
     def construct(self, x):
         out = self._aspp_conv(x)

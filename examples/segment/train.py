@@ -33,7 +33,7 @@ from mindcv.utils import (
     set_logger,
     set_seed,
 )
-from config import parse_args
+# from config import parse_args
 
 
 def train(args):
@@ -130,7 +130,7 @@ def train(args):
             args.ema,
             args.clip_grad,
             args.gradient_accumulation_steps,
-            args.amp_cast_list,
+            # args.amp_cast_list,
         )
     ):
         optimizer_loss_scale = args.loss_scale
@@ -158,7 +158,7 @@ def train(args):
         optimizer,
         metrics=None,
         amp_level = "O0" if args.device_target == "CPU" else args.amp_level,
-        amp_cast_list=args.amp_cast_list,
+        # amp_cast_list=args.amp_cast_list,
         loss_scale_type=args.loss_scale_type,
         loss_scale=args.loss_scale,  # fixed
         drop_overflow_update=args.drop_overflow_update,  # False
