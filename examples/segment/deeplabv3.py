@@ -155,7 +155,7 @@ class DeepLabV3(nn.Cell):
 
 
 class DeepLabV3WithLoss(nn.Cell):
-    """ "
+    """ 
     Provide DeeplabV3 training loss through network.
 
     Args:
@@ -175,3 +175,22 @@ class DeepLabV3WithLoss(nn.Cell):
         output = self.network(input_data)
         net_loss = self.criterion(output, label)
         return net_loss
+
+
+class DeepLabV3InferNetwork(nn.Cell):
+    """ 
+    Provide DeeplabV3 infer network.
+
+    """    
+    def __init__(self, network, input_format="NCHW"):
+        super(DeepLabV3InferNetwork, self).__init__()
+        self.network = network
+        self.softmax = nn.Softmax(axis=1)
+        self.format = input_format
+
+    def construct(self, input_data):
+        if self.format == "NHWC":
+            input_data = ops.transpose(input_data, (0, 3, 1, 2))
+        output = self.network(input_data)
+        output = self.softmax(output)
+        return output

@@ -156,9 +156,9 @@ if __name__ == '__main__':
     # create_voc_val_lst_txt()
     # print('generating voc val list success.')
 
-    # print('converting sbd annotations to png ...')
-    # conv_sbd_mat_to_png()
-    # print('converting done')
+    print('converting sbd annotations to png ...')
+    conv_sbd_mat_to_png()
+    print('converting done')
 
     # create_voc_train_aug_lst_txt()
     # print('generating voc train aug list success.')
