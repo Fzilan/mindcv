@@ -1,15 +1,16 @@
 # system
 seed: 1
 mode: 1 # TODO: 现在先用动态图方便调试！静态图是0
-distribute: False
+distribute: True
 num_parallel_workers: 8
 enable_modelarts: False
 eval_while_train: False
 
 # dataset
 dataset: "vocaug"
-data_dir: "/Users/fanzhilan/Documents/HUAWEI/Requirement/Dataset/sample.mindrecord" # mindrecord file or list
-batch_size: 1
+data_dir: "/home/cvgroup/Datasets/Segment/mindrecord/vocaug0"
+# data_dir: "/Users/fanzhilan/Documents/HUAWEI/Requirement/Dataset/sample.mindrecord" # mindrecord file or list
+batch_size: 32
 crop_size: 513
 image_mean: [103.53, 116.28, 123.675]
 image_std: [57.375, 57.120, 58.395]
