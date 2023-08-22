@@ -6,6 +6,7 @@ import os
 import yaml
 import mindspore as ms
 from addict import Dict
+from mindspore import context
 from mindspore.communication import get_group_size, get_rank, init
 from mindspore import log as logger
 from mindspore import save_checkpoint
@@ -215,15 +216,12 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    from mindspore import context
-    context.set_context(device_target=args.device_target) 
-
     args = parse_args()
     yaml_fp = args.config
     with open(yaml_fp) as fp:
         args = yaml.safe_load(fp)
     args = Dict(args)
-    
+    context.set_context(device_target=args.device_target) 
     # data sync for cloud platform if enabled
     if args.enable_modelarts:
         import moxing as mox
