@@ -158,7 +158,7 @@ def train(args):
         optimizer,
         metrics=None,
         amp_level = "O0" if args.device_target == "CPU" else args.amp_level,
-        # amp_cast_list=args.amp_cast_list,
+        amp_cast_list=args.amp_cast_list,
         loss_scale_type=args.loss_scale_type,
         loss_scale=args.loss_scale,  # fixed
         drop_overflow_update=args.drop_overflow_update,  # False
@@ -188,7 +188,7 @@ def train(args):
         args.epoch_size,
         dataset,
         callbacks=callbacks,
-        dataset_sink_mode=args.dataset_sink_mode,
+        dataset_sink_mode=(args.device_target != "CPU"),
     )
     # model.train(args.train_epochs, dataset, callbacks=cbs, dataset_sink_mode=(args.device_target != "CPU"))
 
@@ -216,16 +216,14 @@ def parse_args():
 
 if __name__ == "__main__":
     from mindspore import context
-    context.set_context(device_target="CPU")
+    context.set_context(device_target=args.device_target) 
 
     args = parse_args()
     yaml_fp = args.config
-
     with open(yaml_fp) as fp:
         args = yaml.safe_load(fp)
-
     args = Dict(args)
-
+    
     # data sync for cloud platform if enabled
     if args.enable_modelarts:
         import moxing as mox
