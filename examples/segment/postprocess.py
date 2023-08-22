@@ -45,12 +45,9 @@ def resize_to_origin(input, origin_size, batch_size):
         output_list.append(res)
     return output_list
 
-
-def calculate_hist(flattened_label, flattened_pred, num_classes):
-    k = (flattened_label>=0) & (flattened_label < num_classes)
-    res = np.bincount(num_classes * flattened_label[k].astype(np.int32) + flattened_pred[k], 
-                      minlength=num_classes ** 2).reshape(num_classes, num_classes)
-    return res
+def calculate_hist(flattened_label, flattened_pred, n):
+    k = (flattened_label >= 0) & (flattened_label < n)
+    return np.bincount(n * flattened_label[k].astype(np.int32) + flattened_pred[k], minlength=n ** 2).reshape(n, n)
             
 def calculate_batch_hist(preds:list, labels:list, batch_size:int, num_classes:int):
     """
@@ -63,9 +60,15 @@ def calculate_batch_hist(preds:list, labels:list, batch_size:int, num_classes:in
     """ 
     batch_hist = np.zeros((num_classes, num_classes))
     for idx in range(batch_size):
+        print("===============pred,gt shape=================")
+        print(preds[idx].shape)
+        print(labels[idx].shape)
         pred = preds[idx].flatten()
         gt = labels[idx].flatten()
-        batch_hist += calculate_hist(pred, gt, num_classes)
+        print("===============pred,gt=================")
+        print(np.unique(pred), pred.shape)
+        print(np.unique(gt), gt.shape)
+        batch_hist += calculate_hist(gt, pred, num_classes)
     return batch_hist
 
 def apply_eval(eval_param_dict):
@@ -88,24 +91,41 @@ def apply_eval(eval_param_dict):
         label_np = data["label"]
         
         batch_image[inner_batch_idx] = img_np
-        batch_label.append(cv2.imdecode(np.frombuffer(label_np, dtype=np.uint8), cv2.IMREAD_GRAYSCALE))
-        batch_origin_size.append(label_np.shape)
+        label = cv2.imdecode(np.frombuffer(label_np, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+        batch_label.append(label)
+        batch_origin_size.append(label.shape)
         inner_batch_idx += 1
 
         if inner_batch_idx == args.batch_size:
             batch_idx += 1
+            # print("=======batch_image,batch_origin_size==========")
+            # print(batch_image[0].shape)
+            # print(batch_origin_size[0])
+
+            
             batch_output = get_net_output(network=net,
                                           input=batch_image, 
                                           flip=args.flip)
+            # print("=======batch_output after net===========")
+            # print(batch_output.shape)
             
             batch_output = resize_to_origin(input=batch_output, 
                                             origin_size=batch_origin_size,
                                             batch_size=args.batch_size)
+            # print("=======batch_output after resize===========")
+            # print(len(batch_output))
+            # print(batch_output[0].shape)
+            
+            batch_output = [pred_mask.argmax(axis=2) for pred_mask in batch_output]
+            # print("=======batch_output after argmax===========")
+            # print(len(batch_output))
+            # print(batch_output[0].shape)            
             
             hist += calculate_batch_hist(preds=batch_output, 
                                          labels=batch_label,
                                          batch_size=args.batch_size,
                                          num_classes=args.num_classes)
+            
 
             inner_batch_idx = 0
             batch_image = np.zeros((args.batch_size, 3, args.crop_size, args.crop_size), 
@@ -119,9 +139,3 @@ def apply_eval(eval_param_dict):
     mIoU = np.nanmean(IoU)
 
     return IoU, mIoU
-
-
-
-
-                    
-
