@@ -1,7 +1,4 @@
 import argparse
-import os
-
-# import sys
 
 import yaml
 import mindspore as ms
@@ -10,9 +7,9 @@ from mindspore.communication import get_group_size, get_rank, init
 from mindspore import log as logger
 
 from data import create_segment_dataset
-from loss import SoftmaxCrossEntropyLoss
 from deeplabv3 import DeepLabV3, DeepLabV3InferNetwork
 from deeplab_resnet import *
+from postprocess import apply_eval
 
 from mindcv.models import create_model
 from mindcv.optim import create_optimizer
@@ -26,7 +23,6 @@ from mindcv.utils import (
     set_logger,
     set_seed,
 )
-from utils import apply_eval
 from mindspore import load_checkpoint, load_param_into_net
 
 def check_batch_size(num_samples, ori_batch_size=32, refine=True):
@@ -43,33 +39,24 @@ def check_batch_size(num_samples, ori_batch_size=32, refine=True):
                 return bs
     return 1
 
-sys.path.append(".")
-
-from mindcv.models import create_model
 
 def eval(args):
-    # check batch size
-    batch_size = check_batch_size(dataset_eval.get_dataset_size(), args.batch_size)
-
     # create dataset and load
     eval_dataset = create_segment_dataset(
         name=args.dataset,
         image_mean=args.image_mean,
         image_std=args.image_std,
         data_dir=args.data_dir,
-        batch_size=args.batch_size,
         crop_size=args.crop_size,
-        max_scale=args.max_scale,
-        min_scale=args.min_scale,
-        ignore_label=args.ignore_label,
         num_classes=args.num_classes,
         num_parallel_workers=args.num_parallel_workers,
-        # shard_id=rank_id,
-        # shard_num=device_num,
-        shuffle=True,
-        is_training=False, # TODO
+        shuffle=False,
+        is_training=False, 
     )
-
+    
+    # check batch size
+    args.batch_size = check_batch_size(eval_dataset.get_dataset_size(), args.batch_size)
+    
     # create eval model
     backbone = create_model(
         args.backbone,
