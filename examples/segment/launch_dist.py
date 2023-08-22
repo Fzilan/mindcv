@@ -25,3 +25,5 @@ if __name__ == '__main__':
     [p.join() for p in processes]
 
 # python launch_dist.py train_with_func.py --config configs/resnet/resnet_50_ascend.yaml --data_dir /ms_test/ImageNet_Original --val_while_train True
+# python launch_dist.py train.py --config test.yaml
+
