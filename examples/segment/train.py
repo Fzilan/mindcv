@@ -1,26 +1,17 @@
 import argparse
 import os
-
 # import sys
-
 import yaml
 import mindspore as ms
 from addict import Dict
 from mindspore import context
 from mindspore.communication import get_group_size, get_rank, init
-from mindspore import log as logger
-from mindspore import save_checkpoint
-from mindspore.train.callback import (
-    CheckpointConfig,
-    LossMonitor,
-    ModelCheckpoint,
-    TimeMonitor,
-)
 
 from data import create_segment_dataset
 from loss import SoftmaxCrossEntropyLoss
-from deeplabv3 import DeepLabV3
+from deeplabv3 import DeepLabV3, DeepLabV3InferNetwork
 from deeplab_resnet import *
+from callbacks import get_segment_train_callback, get_segment_eval_callback
 
 from mindcv.models import create_model
 from mindcv.optim import create_optimizer
@@ -149,10 +140,6 @@ def train(args):
         checkpoint_path=opt_ckpt_path,
     )
 
-    # TODO: define eval metrics ?
-
-    # create trainer
-    # 存疑  metrics=None
     trainer = create_trainer(
         deeplabv3,
         loss,
@@ -166,33 +153,32 @@ def train(args):
     )
 
     # callback
-    callbacks = [TimeMonitor(data_size=steps_per_epoch), LossMonitor()]
+    callbacks = get_segment_train_callback(args, steps_per_epoch, rank_id)
 
-    if rank_id == 0:
-        ckpt_config = CheckpointConfig(
-            save_checkpoint_steps=args.save_steps,
-            keep_checkpoint_max=args.keep_checkpoint_max,
+    # eval when train  
+    if args.eval_while_train and rank_id == 0:
+        eval_model = DeepLabV3InferNetwork(deeplabv3, input_format=args.input_format)
+        eval_dataset = create_segment_dataset(
+            name=args.dataset,
+            image_mean=args.image_mean,
+            image_std=args.image_std,
+            data_dir=args.eval_data_dir,
+            crop_size=args.crop_size,
+            num_classes=args.num_classes,
+            num_parallel_workers=args.num_parallel_workers,
+            shuffle=False,
+            is_training=False, 
         )
-        prefix_name = "deeplabv3_s" + str(args.output_stride) + "_" + args.backbone
-        ckpt_cb = ModelCheckpoint(
-            prefix=prefix_name, directory=args.ckpt_save_dir, config=ckpt_config
-        )
-        callbacks.append(ckpt_cb)
-
-    # if args.eval_while_train and rank_id==0:
-    #     eval_model =
-    #     eval_dataset = create_segment_dataset()
-    #     eval_callback =
-    #     callbacks.append(eval_callback)
-
+        
+        eval_callback = get_segment_eval_callback(eval_model, eval_dataset, args)
+        callbacks.append(eval_callback)
+        
     trainer.train(
         args.epoch_size,
         dataset,
         callbacks=callbacks,
         dataset_sink_mode=(args.device_target != "CPU"),
     )
-    # model.train(args.train_epochs, dataset, callbacks=cbs, dataset_sink_mode=(args.device_target != "CPU"))
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Training Config", add_help=False)
