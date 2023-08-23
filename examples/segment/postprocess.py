@@ -3,6 +3,20 @@ from mindspore import Tensor
 import mindspore.common.dtype as mstype
 import cv2
 
+def check_batch_size(num_samples, ori_batch_size=32, refine=True):
+    if num_samples % ori_batch_size == 0:
+        return ori_batch_size
+    else:
+        # search a batch size that is divisible by num samples.
+        for bs in range(ori_batch_size - 1, 0, -1):
+            if num_samples % bs == 0:
+                print(
+                    f"WARNING: num eval samples {num_samples} can not be divided by "
+                    f"the input batch size {ori_batch_size}. The batch size is refined to {bs}"
+                )
+                return bs
+    return 1
+
 def get_net_output(network, input, flip=True):
     """
     infer image
@@ -41,7 +55,7 @@ def resize_to_origin(input, origin_size, batch_size):
         # ?
         res = input[idx][:,:,:].transpose((1, 2, 0))
         h, w = origin_size[idx][0], origin_size[idx][1]
-        res = cv2.resize(res, (w, h))
+        res = cv2.resize(res.astype(np.uint8), (w, h))
         output_list.append(res)
     return output_list
 
@@ -60,14 +74,14 @@ def calculate_batch_hist(preds:list, labels:list, batch_size:int, num_classes:in
     """ 
     batch_hist = np.zeros((num_classes, num_classes))
     for idx in range(batch_size):
-        print("===============pred,gt shape=================")
-        print(preds[idx].shape)
-        print(labels[idx].shape)
+        # print("===============pred,gt shape=================")
+        # print(preds[idx].shape)
+        # print(labels[idx].shape)
         pred = preds[idx].flatten()
         gt = labels[idx].flatten()
-        print("===============pred,gt=================")
-        print(np.unique(pred), pred.shape)
-        print(np.unique(gt), gt.shape)
+        # print("===============pred,gt=================")
+        # print(np.unique(pred), pred.shape)
+        # print(np.unique(gt), gt.shape)
         batch_hist += calculate_hist(gt, pred, num_classes)
     return batch_hist
 
@@ -132,10 +146,11 @@ def apply_eval(eval_param_dict):
                                    dtype=np.float32)
             batch_origin_size = []
             batch_label = []
-            
-            print('processed {} images'.format(batch_idx*args.batch_size))
-
+                    
+            # print('processed {} images'.format(batch_idx*args.batch_size))
+    
     IoU = np.diag(hist) / (hist.sum(1) + hist.sum(0) - np.diag(hist))
     mIoU = np.nanmean(IoU)
 
-    return IoU, mIoU
+    # return IoU, mIoU
+    return mIoU
