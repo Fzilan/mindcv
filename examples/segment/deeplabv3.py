@@ -148,9 +148,8 @@ class DeepLabV3(nn.Cell):
         features = self.backbone(x)[-1] # TODO: 返回来一个List[Tensor[...]], 取最后一个？
         out = self.aspp(features)
         out = ops.interpolate(
-            out, size=(size[2], size[3]), mode="bilinear", align_corners=True
+            out, size=(size[2], size[3]), mode="bilinear", align_corners=False
         )
-        # torchvison设置了align_corners flase
         return out
 
 
