@@ -1,7 +1,6 @@
 from typing import List
 
 import mindspore.nn as nn
-from mindspore.ops import operations as P
 import mindspore.ops as ops
 
 
@@ -20,7 +19,8 @@ class ASPP(nn.Cell):
         in_channels: int = 2048,
         out_channels: int = 256,
         num_classes: int = 21,
-        use_batch_statistics: bool = False,
+        # use_batch_statistics: bool = True,
+        weight_init:str = 'xavier_uniform',
     ) -> 'ASPP':
         super(ASPP, self).__init__()
 
@@ -33,26 +33,26 @@ class ASPP(nn.Cell):
                     in_channels,
                     out_channels,
                     rate,
-                    use_batch_statistics=use_batch_statistics,
+                    # use_batch_statistics=use_batch_statistics,
                 )
             )
         self.aspp_convs.append(
             ASPPPooling(
-                in_channels, out_channels, use_batch_statistics=use_batch_statistics
+                in_channels, out_channels #, use_batch_statistics=use_batch_statistics
             )
         )
         
-        # modelzoo 所有conv set weight_init='xavier_uniform'
         self.conv1 = nn.Conv2d(
-            out_channels * (len(atrous_rates) + 1), out_channels, kernel_size=1
+            out_channels * (len(atrous_rates) + 1), out_channels, kernel_size=1,
+            weight_init=weight_init
         )
-        #    weight_init='xavier_uniform')
         self.bn1 = nn.BatchNorm2d(
-            out_channels, use_batch_statistics=use_batch_statistics
+            out_channels #, use_batch_statistics=use_batch_statistics
         )
         self.relu = nn.ReLU()
         self.drop = nn.Dropout(p=0.7)
-        self.conv2 = nn.Conv2d(out_channels, num_classes, kernel_size=1, has_bias=True)
+        self.conv2 = nn.Conv2d(out_channels, num_classes, kernel_size=1, 
+                               weight_init=weight_init, has_bias=True)
 
     def construct(self, x):
         _out = []
@@ -71,13 +71,17 @@ class ASPP(nn.Cell):
 
 class ASPPPooling(nn.Cell):
     def __init__(
-        self, in_channels: int, out_channels: int, use_batch_statistics: bool = False
+        self, 
+        in_channels: int, 
+        out_channels: int, 
+        # use_batch_statistics: bool = True,
+        weight_init:str = 'xavier_uniform',
     ) -> None:
         super(ASPPPooling, self).__init__()
         self.conv = nn.SequentialCell(
             [
-                nn.Conv2d(in_channels, out_channels, kernel_size=1),
-                nn.BatchNorm2d(out_channels, use_batch_statistics=use_batch_statistics),
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, weight_init=weight_init),
+                nn.BatchNorm2d(out_channels), #, use_batch_statistics=use_batch_statistics),
                 nn.ReLU(),
             ]
         )
@@ -96,12 +100,13 @@ class ASPPConv(nn.Cell):
         in_channels: int,
         out_channels: int,
         atrous_rate: int = 1,
-        use_batch_statistics: bool = False,
+        # use_batch_statistics: bool = True,
+        weight_init: str = 'xavier_uniform'
     ) -> None:
         super(ASPPConv, self).__init__()
 
         self._aspp_conv = nn.SequentialCell([
-            nn.Conv2d(in_channels, out_channels, kernel_size=1, has_bias=False)
+            nn.Conv2d(in_channels, out_channels, kernel_size=1, has_bias=False, weight_init=weight_init)
             if atrous_rate == 1
             else nn.Conv2d(
                 in_channels,
@@ -110,8 +115,9 @@ class ASPPConv(nn.Cell):
                 pad_mode="pad",
                 padding=atrous_rate,
                 dilation=atrous_rate,
+                weight_init=weight_init,
             ),
-            nn.BatchNorm2d(out_channels, use_batch_statistics=use_batch_statistics),
+            nn.BatchNorm2d(out_channels), #, use_batch_statistics=use_batch_statistics),
             nn.ReLU(),
         ])
         # for i in self._aspp_conv[0].get_parameters():
@@ -128,12 +134,13 @@ class DeepLabV3(nn.Cell):
         backbone,
         args,
         is_training: bool = True,
+        # freeze_bn: bool = False,
         # phase='train',
         # num_classes=21,
-        # freeze_bn: bool = False
+        # 
     ):
         super(DeepLabV3, self).__init__()
-        # use_batch_statistics = not args.freeze_bn
+        # use_batch_statistics = not freeze_bn
         self.is_training = is_training
         self.backbone = backbone
         self.aspp = ASPP(
@@ -141,6 +148,7 @@ class DeepLabV3(nn.Cell):
             is_training=is_training,
             in_channels=2048,
             num_classes=args.num_classes,
+            # use_batch_statistics = use_batch_statistics,
         )
 
     def construct(self, x):
@@ -148,7 +156,7 @@ class DeepLabV3(nn.Cell):
         features = self.backbone(x)[-1] # TODO: 返回来一个List[Tensor[...]], 取最后一个？
         out = self.aspp(features)
         out = ops.interpolate(
-            out, size=(size[2], size[3]), mode="bilinear", align_corners=False
+            out, size=(size[2], size[3]), mode="bilinear", align_corners=True
         )
         return out
 
